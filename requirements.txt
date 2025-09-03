@@ -1,3 +1,2 @@
 streamlit==1.37.1
-dateparser>=1.1.1
-pandas>=1.5
+sqlite3-binary
