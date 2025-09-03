@@ -141,7 +141,7 @@ with st.form("task_form"):
     with colf2:
         priority = st.selectbox("Priority", [1,2,3,4,5], index=2)
     desc = st.text_area("Description", height=80)
-    due = st.text_input("Due (e.g. 2025-09-05 or tomorrow)")
+    due = st.text_input("Due (YYYY-MM-DD)")
     submitted = st.form_submit_button("Add Task")
     if submitted and title.strip():
         add_task(title, desc, priority, due)
