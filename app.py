@@ -41,31 +41,37 @@ if "dark" not in st.session_state:
     st.session_state.dark = False
 
 def inject_css():
-    css_light = """
-    <style>
-    .stApp { background-color:#f8fafc; color:#0f172a; font-family: 'Inter', sans-serif; }
-    h1,h2,h3,h4,h5 { color:#0f172a; font-weight:600; }
-    .card { background:#fff; border-radius:12px; padding:16px; margin-bottom:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); }
-    .metric { text-align:center; font-size:22px; font-weight:600; }
-    .priority-high { color:#dc2626; font-weight:600; }
-    .priority-med { color:#ea580c; font-weight:600; }
-    .priority-low { color:#16a34a; font-weight:600; }
-    </style>
-    """
+    dark_mode = st.session_state.dark
 
-    css_dark = """
-    <style>
-    .stApp { background-color:#0f172a; color:#e2e8f0; font-family: 'Inter', sans-serif; }
-    h1,h2,h3,h4,h5 { color:#e2e8f0; font-weight:600; }
-    .card { background:#1e293b; border-radius:12px; padding:16px; margin-bottom:12px; box-shadow:0 4px 12px rgba(0,0,0,0.3); }
-    .metric { text-align:center; font-size:22px; font-weight:600; }
-    .priority-high { color:#f87171; font-weight:600; }
-    .priority-med { color:#fb923c; font-weight:600; }
-    .priority-low { color:#4ade80; font-weight:600; }
-    </style>
-    """
+    header_color = "#e2e8f0" if dark_mode else "#0f172a"
+    bg_color = "#0f172a" if dark_mode else "#f8fafc"
+    card_bg = "#1e293b" if dark_mode else "#fff"
+    card_shadow = "0 4px 12px rgba(0,0,0,0.3)" if dark_mode else "0 4px 12px rgba(0,0,0,0.05)"
 
-    st.markdown(css_dark if st.session_state.dark else css_light, unsafe_allow_html=True)
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background-color:{bg_color};
+        color:{header_color};
+        font-family: 'Inter', sans-serif;
+    }}
+    h1,h2,h3,h4,h5 {{
+        color:{header_color};
+        font-weight:600;
+    }}
+    .card {{
+        background:{card_bg};
+        border-radius:12px;
+        padding:16px;
+        margin-bottom:12px;
+        box-shadow:{card_shadow};
+    }}
+    .metric {{ text-align:center; font-size:22px; font-weight:600; }}
+    .priority-high {{ color:{'#f87171' if dark_mode else '#dc2626'}; font-weight:600; }}
+    .priority-med {{ color:{'#fb923c' if dark_mode else '#ea580c'}; font-weight:600; }}
+    .priority-low {{ color:{'#4ade80' if dark_mode else '#16a34a'}; font-weight:600; }}
+    </style>
+    """, unsafe_allow_html=True)
 
 inject_css()
 
