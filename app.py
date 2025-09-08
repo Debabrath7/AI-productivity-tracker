@@ -2,9 +2,10 @@ import streamlit as st
 import sqlite3
 from sqlite3 import Connection
 from datetime import datetime, date, timedelta
+import pandas as pd
 
 DB_PATH = "tasks.db"
-st.set_page_config(page_title="Lumos Productivity", page_icon="🧠", layout="centered")
+st.set_page_config(page_title="AI-Productivity-Tracker", page_icon="🧠", layout="centered")
 
 # ----------------- DB Setup -----------------
 def get_conn() -> Connection:
@@ -38,14 +39,14 @@ init_db()
 # ----------------- Dark Theme CSS -----------------
 st.markdown("""
 <style>
+/* Force dark mode */
 .stApp {
-    background-color:#0f172a;
-    color:#e2e8f0;
+    background-color:#0f172a !important;
+    color:#e2e8f0 !important;
     font-family: 'Inter', sans-serif;
 }
-h1,h2,h3,h4,h5 {
-    color:#e2e8f0;
-    font-weight:600;
+h1,h2,h3,h4,h5,h6,label,span,small,div {
+    color:#e2e8f0 !important;
 }
 .card {
     background:#1e293b;
@@ -61,16 +62,12 @@ h1,h2,h3,h4,h5 {
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------- Header -----------------
-st.title("✨ Lumos Productivity Tracker")
-st.markdown("---")
-
 # ----------------- Helper Functions -----------------
-def get_all_tasks():
+def fetch_tasks_df():
     conn = get_conn()
-    rows = conn.execute("SELECT * FROM tasks ORDER BY created_at DESC").fetchall()
+    df = pd.read_sql_query("SELECT * FROM tasks ORDER BY created_at DESC", conn)
     conn.close()
-    return rows
+    return df
 
 def add_task(title, desc, priority, due):
     conn = get_conn()
@@ -99,40 +96,41 @@ def edit_task(task_id, new_title, new_desc, new_priority, new_due):
     conn.commit()
     conn.close()
 
-def get_streak():
-    conn = get_conn()
-    rows = conn.execute("SELECT completed_at FROM tasks WHERE completed=1 ORDER BY completed_at DESC").fetchall()
-    conn.close()
-    if not rows:
+def get_streak(df):
+    if df.empty or "completed_at" not in df.columns:
         return 0
+    df = df[df["completed"] == 1].dropna(subset=["completed_at"])
+    if df.empty:
+        return 0
+    df["completed_at"] = pd.to_datetime(df["completed_at"]).dt.date
     today = date.today()
     streak = 0
-    for r in rows:
-        if not r["completed_at"]:
-            continue
-        d = datetime.fromisoformat(r["completed_at"]).date()
-        if d == today - timedelta(days=streak):
-            streak += 1
-        else:
-            break
+    while today - timedelta(days=streak) in df["completed_at"].values:
+        streak += 1
     return streak
 
-# ----------------- Overview -----------------
-tasks = get_all_tasks()
-done = sum(1 for t in tasks if t["completed"])
-progress = (done / len(tasks)) * 100 if tasks else 0
-streak = get_streak()
+# ----------------- Load Data -----------------
+df = fetch_tasks_df()
+done = df["completed"].sum() if not df.empty else 0
+total = len(df)
+progress = (done / total) * 100 if total > 0 else 0
+streak = get_streak(df)
 
+# ----------------- UI -----------------
+st.title("✨ Lumos Productivity Tracker")
+st.markdown("---")
+
+# Overview
 st.subheader("📊 Overview")
 c1, c2, c3 = st.columns(3)
 with c1: st.markdown(f"<div class='card metric'>{progress:.0f}%<br>Progress</div>", unsafe_allow_html=True)
-with c2: st.markdown(f"<div class='card metric'>{len(tasks)}<br>Total</div>", unsafe_allow_html=True)
+with c2: st.markdown(f"<div class='card metric'>{total}<br>Total</div>", unsafe_allow_html=True)
 with c3: st.markdown(f"<div class='card metric'>{streak} 🔥<br>Streak</div>", unsafe_allow_html=True)
 
-st.progress(progress/100 if tasks else 0)
+st.progress(progress/100 if total > 0 else 0)
 st.markdown("---")
 
-# ----------------- Add Task -----------------
+# Add Task
 st.subheader("➕ Add Task")
 with st.form("task_form"):
     colf1, colf2 = st.columns([3,1])
@@ -150,26 +148,26 @@ with st.form("task_form"):
 
 st.markdown("---")
 
-# ----------------- Show Tasks -----------------
+# Show Tasks
 st.subheader("📂 Tasks")
 filter_status = st.radio("Filter", ["All", "Pending", "Completed"], horizontal=True)
 sort_by = st.selectbox("Sort by", ["Created Time", "Due Date", "Priority"])
 
-rows = tasks
+rows = df.copy()
 if filter_status == "Pending":
-    rows = [r for r in rows if not r["completed"]]
+    rows = rows[rows["completed"] == 0]
 elif filter_status == "Completed":
-    rows = [r for r in rows if r["completed"]]
+    rows = rows[rows["completed"] == 1]
 
 if sort_by == "Due Date":
-    rows = sorted(rows, key=lambda r: (r["due_date"] or "9999-12-31"))
+    rows = rows.sort_values(by="due_date", na_position="last")
 elif sort_by == "Priority":
-    rows = sorted(rows, key=lambda r: r["priority"])
+    rows = rows.sort_values(by="priority")
 
-if not rows:
+if rows.empty:
     st.info("No tasks match your filter.")
 else:
-    for r in rows:
+    for _, r in rows.iterrows():
         priority_class = "priority-low" if r["priority"] >=4 else "priority-med" if r["priority"] == 3 else "priority-high"
         overdue = False
         if r["due_date"]:
